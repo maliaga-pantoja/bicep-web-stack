@@ -1,5 +1,5 @@
-RG_NAME ?= "pacifico-poc2"
-LOCATION ?= "eastus"
+RG_NAME ?= "pacifico-poc"
+LOCATION ?= "eastus2"
 DEPLOYMENT_NAME ?= "webapp"
 PWD = $(shell pwd)
 create-rg:
