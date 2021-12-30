@@ -17,7 +17,7 @@ param file_shared_name string = 'shared'
 param storage_key string = 'xxx'
 // git repo config
 param branch string = 'master'
-param repositoryUrl string = 'https://github.com/maliaga-pantoja/bicep-webapp.git'
+param repositoryUrl string = 'https://github.com/maliaga-pantoja/webapp-storage-account.git'
 
 resource appServicePlan 'Microsoft.Web/serverfarms@2020-06-01' = {
   name: 'asp-${webappName}-${resourceGroup().location}'
