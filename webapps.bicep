@@ -5,22 +5,26 @@ param sku string = 'F1'
 param servicePlanCapacity int = 1
 
 @description('webapp name to be used as part of serviceplan, webapp and source control')
-param webappName string = 'pacifico-webstack2'
+param deployment_name string = 'pacificowebstack'
 
 @description('nodejs version')
 param linuxFxVersion string = 'NODE|14-lts'
 
+@description('environment name')
+param environment string = 'dev'
 
 // env vars
-param port string = '3000'
-param file_shared_name string = 'shared'
-param storage_key string = 'xxx'
+param container string
+param storage_key string
+param client_secret string
+param resource_id string
+param client_id string
 // git repo config
 param branch string = 'master'
 param repositoryUrl string = 'https://github.com/maliaga-pantoja/webapp-storage-account.git'
 
 resource appServicePlan 'Microsoft.Web/serverfarms@2020-06-01' = {
-  name: 'asp-${webappName}-${resourceGroup().location}'
+  name: 'asp-${deployment_name}-${resourceGroup().location}-${environment}'
   location: resourceGroup().location
   kind: 'linux'
   properties: {
@@ -32,31 +36,21 @@ resource appServicePlan 'Microsoft.Web/serverfarms@2020-06-01' = {
   }
 }
 
-resource webApplication 'Microsoft.Web/sites@2020-06-01' = {
-  name: 'wa-${webappName}-${resourceGroup().location}'
+resource webApplication 'Microsoft.Web/sites@2021-02-01' = {
+  name: 'wa-${deployment_name}-${resourceGroup().location}-${environment}'
   location: resourceGroup().location
+  identity: {
+    type: 'SystemAssigned'
+  }
   properties: {
     httpsOnly: true
     serverFarmId: appServicePlan.id
     siteConfig: {
       linuxFxVersion: linuxFxVersion
-      appSettings: [
-        {
-          name: 'PORT'
-          value: port
-        }
-        {
-          name: 'STORAGE_KEY'
-          value: storage_key
-        }
-        {
-          name: 'FILE_SHARED_NAME'
-          value: file_shared_name
-        }
-      ]
     }
   }
 }
+
 resource srcControl 'Microsoft.Web/sites/sourcecontrols@2021-01-01' = {
   name: 'web'
   parent: webApplication
@@ -66,5 +60,79 @@ resource srcControl 'Microsoft.Web/sites/sourcecontrols@2021-01-01' = {
     isManualIntegration: true
     deploymentRollbackEnabled: true
     isGitHubAction: false
+  }
+}
+
+resource keyVault 'Microsoft.KeyVault/vaults@2021-06-01-preview' = {
+  name: 'akv-${deployment_name}-${resourceGroup().location}-${environment}'
+  location: resourceGroup().location
+  properties: {
+    enabledForDeployment: true
+    enabledForTemplateDeployment: true
+    enabledForDiskEncryption: true
+    tenantId: tenant().tenantId
+    accessPolicies: [
+      {
+        tenantId: tenant().tenantId
+        objectId: webApplication.identity.principalId
+        permissions: {
+          secrets: [
+            'all'
+          ]
+        }
+      }
+      {
+        tenantId: tenant().tenantId
+        objectId: resource_id
+        permissions: {
+          secrets: [
+            'all'
+          ]
+        }
+      }
+    ]
+    sku: {
+      name: 'standard'
+      family: 'A'
+    }
+  }
+}
+// storage account key
+resource keyVaultSecretStorageKey 'Microsoft.KeyVault/vaults/secrets@2019-09-01' = {
+  name: '${keyVault.name}/storagekey'
+  properties: {
+    value: storage_key
+  }
+}
+// container instance name
+resource keyVaultSecretContainerAccess 'Microsoft.KeyVault/vaults/secrets@2019-09-01' = {
+  name: '${keyVault.name}/container'
+  properties: {
+    value: container
+  }
+}
+// webapp env vars necesary to access to keyvault
+resource webappVars 'Microsoft.Web/sites/config@2021-02-01' = {
+  name: 'web'
+  parent: webApplication
+  properties: {
+    appSettings: [
+      {
+        name: 'AZURE_TENANT_ID'
+        value: tenant().tenantId
+      }
+      {
+        name: 'AZURE_CLIENT_ID'
+        value: client_id
+      }
+      {
+        name: 'AZURE_CLIENT_SECRET'
+        value: client_secret
+      }
+      {
+        name: 'VAULT_NAME'
+        value: keyVault.name
+      }
+    ]
   }
 }
