@@ -15,7 +15,7 @@ param environment string = 'dev'
 
 // env vars
 param container string
-param storage_key string
+param storage_name string
 param client_secret string
 param resource_id string
 param client_id string
@@ -71,6 +71,7 @@ resource keyVault 'Microsoft.KeyVault/vaults@2021-06-01-preview' = {
     enabledForTemplateDeployment: true
     enabledForDiskEncryption: true
     tenantId: tenant().tenantId
+    enableSoftDelete: false
     accessPolicies: [
       {
         tenantId: tenant().tenantId
@@ -99,9 +100,9 @@ resource keyVault 'Microsoft.KeyVault/vaults@2021-06-01-preview' = {
 }
 // storage account key
 resource keyVaultSecretStorageKey 'Microsoft.KeyVault/vaults/secrets@2019-09-01' = {
-  name: '${keyVault.name}/storagekey'
+  name: '${keyVault.name}/storagename'
   properties: {
-    value: storage_key
+    value: storage_name
   }
 }
 // container instance name
